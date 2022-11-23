@@ -19,6 +19,25 @@ def is_file_older_than(file, delta):
     return False
 
 
+def is_instance_birdsitelive(domain):
+    try:
+        r = requests.get("https://" + domain + "/.well-known/nodeinfo")
+        if r.status_code == 200:
+            x = json.loads(r.text)
+            detail_url = x["links"][0]["href"]
+            r = requests.get(detail_url)
+            # print(r.text)
+            inst_data = json.loads(r.text)
+            if inst_data["software"]["name"] == "birdsitelive":
+                return True
+            else:
+                return False
+        else:
+            return False
+    except:
+        return True
+
+
 def get_domain_and_id(inp):
     if validators.url(inp):
         print("[+] " + inp + " is Url")
@@ -112,17 +131,20 @@ def hunt_name(name_hunt):
     full_list = json.load(f)
     for i in full_list:
         # print("Checking: " + i)
-        try:
-            r = requests.get("https://" + i + "/.well-known/webfinger?resource=acct:" + name_hunt + "@" + i)
-            if r.status_code == 200:
-                x = json.loads(r.text)
-                if "aliases" in x:
-                    if x["subject"] == "acct:" + name_hunt + "@" + i:
-                        print("[+] User found on : " + i + " Details: " + ','.join(x["aliases"]))
-                    else:
-                        print("[*] Misconfigured Server : " + i)
-        except:
-            print("[*] Connection Error : " + i)
+        if is_instance_birdsitelive(i):
+            print("[*] Skipping Bird Site Live instance " + i)
+        else:
+            try:
+                r = requests.get("https://" + i + "/.well-known/webfinger?resource=acct:" + name_hunt + "@" + i)
+                if r.status_code == 200:
+                    x = json.loads(r.text)
+                    if "aliases" in x:
+                        if x["subject"] == "acct:" + name_hunt + "@" + i:
+                            print("[+] User found on : " + i + " Details: " + ','.join(x["aliases"]))
+                        else:
+                            print("[*] Misconfigured Server : " + i)
+            except:
+                print("[*] Connection Error : " + i)
 
 
 def main():
