@@ -92,8 +92,8 @@ def parse_domain_details(inst_data):
         print("[+] Protocols Supported:", protocols_supported[0])
         protocol_version = inst_data["version"]
         print("[+] Protocol Version: ", protocol_version)
-        reg_open = inst_data["openRegistrations"]
-        print("[+] Registration Status: ", reg_open)
+        # reg_open = inst_data["openRegistrations"]
+        # print("[+] Registration Status: ", reg_open)
         if inst_data["usage"]["users"]:
             total_users = inst_data["usage"]["users"]["total"]
             print("[+] Total Users: ", total_users)
