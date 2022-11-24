@@ -62,13 +62,15 @@ def get_domain_and_id(inp):
 
 
 def check_domain(domain):
-    r = requests.get("https://" + domain + "/.well-known/nodeinfo")
-    # print(r.text)
-    if r.status_code == 200:
-        return True
-    else:
+    try:
+        r = requests.get("https://" + domain + "/.well-known/nodeinfo")
+        # print(r.text)
+        if r.status_code == 200:
+            return True
+        else:
+            return False
+    except:
         return False
-
 
 def fetch_details(domain):
     r = requests.get("https://" + domain + "/.well-known/nodeinfo")
