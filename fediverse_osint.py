@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 import argparse
-import reprlib
-
 import requests
 import validators
 from urllib.parse import urlparse
 import json
 from datetime import timedelta, datetime
+
 
 nodelist_url = "https://nodes.fediverse.party/nodes.json"
 
@@ -40,14 +39,12 @@ def is_instance_birdsitelive(domain):
 
 def get_domain_and_id(inp):
     if validators.url(inp):
-        print("[+] " + inp + " is Url")
         link = urlparse(inp)
         # print(link)
         domain_name = link.netloc
         if link.path.__contains__("@"):
             username = link.path[2:]
     else:
-        print("[*] " + inp + " is NOT a URL")
         if inp.__contains__("@"):
             # remove the first @ in case it exists
             if inp[:1] == "@":
@@ -101,10 +98,10 @@ def parse_domain_details(inst_data):
             active_users = inst_data["usage"]["users"]["activeMonth"]
             print("[+] Monthly Active Users: ", active_users)
         else:
-            print("[*] Single User instance or info not available")
+            print("[⛔] Single User instance or info not available")
 
     except KeyError:
-        print("[*] Error occured")
+        print("[⛔] Error occured")
         print(inst_data)
 
 
@@ -123,7 +120,7 @@ def fetch_user_details(username, domain):
     lnk = x["links"]
     for i in lnk:
         if i["rel"].__contains__("profile"):
-            print("[+] User Profile : " + i["href"])
+            print("[✅] User Profile : " + i["href"])
 
 
 def hunt_name(name_hunt):
@@ -140,11 +137,11 @@ def hunt_name(name_hunt):
                     x = json.loads(r.text)
                     if "aliases" in x:
                         if x["subject"] == "acct:" + name_hunt + "@" + i:
-                            print("[+] User found on : " + i + " Details: " + ','.join(x["aliases"]))
+                            print("[✅] User found on : " + i + " Details: " + ','.join(x["aliases"]))
                         else:
-                            print("[*] Misconfigured Server : " + i)
+                            print("[⛔️] Misconfigured Server : " + i)
             except:
-                print("[*] Connection Error : " + i)
+                print("[⛔] Connection Error : " + i)
 
 
 def main():
@@ -158,7 +155,7 @@ def main():
         username, domain = get_domain_and_id(inp)
         # print("Lets check if domain is a fediverse entity or not")
         if check_domain(domain):
-            print("[+] Valid entity, Proceeding with detail extraction")
+            print("[✅] Valid entity, Proceeding with detail extraction")
             # print("Lets get details about the domain")
             domain_details = fetch_details(domain)
             parse_domain_details(domain_details)
@@ -166,9 +163,9 @@ def main():
             if check_user(username, domain):
                 fetch_user_details(username, domain)
             else:
-                print("[-] User Doesnt Exists")
+                print("[❌] User Doesnt Exists")
         else:
-            print("Not a fediverse entity")
+            print("[⛔️] Not a fediverse entity")
     if args.update:
         print("lets check if update is needed: new file to be fetched if last update was more then 6 hours older")
         if is_file_older_than("nodes.json", timedelta(hours=10)):
@@ -176,7 +173,7 @@ def main():
             if node_list.status_code == 200:
                 open('nodes.json', 'w').write(node_list.text)
             else:
-                print("[*] Error while updating file")
+                print("[⛔] Error while updating file")
     if args.search:
         name_hunt = args.search
         print("Lets hunt for the username " + name_hunt)
