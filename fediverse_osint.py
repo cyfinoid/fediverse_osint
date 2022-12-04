@@ -5,9 +5,20 @@ import validators
 from urllib.parse import urlparse
 import json
 from datetime import timedelta, datetime
+import time
+import concurrent.futures
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import as_completed
+from tqdm import tqdm
 
+headers = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; rv:91.0) Gecko/20100101 Firefox/91.0 https://github.com/anantshri/fediverse_osint'
+}
+
+start = time.perf_counter()
 
 nodelist_url = "https://nodes.fediverse.party/nodes.json"
+
 
 
 def is_file_older_than(file, delta):
@@ -18,21 +29,26 @@ def is_file_older_than(file, delta):
     return False
 
 
-def is_instance_birdsitelive(domain):
+def is_invalid_instance(domain):
+    # Returns False only when specific conditions are met, any error is a return True automatically
+    # 1. its responding to nodeinfo
+    # 2. its not birdsitelive
     try:
-        r = requests.get("https://" + domain + "/.well-known/nodeinfo")
+        r = requests.get("https://" + domain + "/.well-known/nodeinfo", headers=headers,timeout=2)
+        # if nodeinfo not responding no point going further
         if r.status_code == 200:
             x = json.loads(r.text)
             detail_url = x["links"][0]["href"]
-            r = requests.get(detail_url)
+            r = requests.get(detail_url, headers=headers,timeout=2)
             # print(r.text)
             inst_data = json.loads(r.text)
+            # if its a birdsitelive instance no point going further
             if inst_data["software"]["name"] == "birdsitelive":
                 return True
             else:
                 return False
         else:
-            return False
+            return True
     except:
         return True
 
@@ -44,6 +60,10 @@ def get_domain_and_id(inp):
         domain_name = link.netloc
         if link.path.__contains__("@"):
             username = link.path[2:]
+        elif link.path.__contains__("users"):
+            username = link.path[link.path.rfind("/") + 1:]
+        else:
+            username = ""
     else:
         if inp.__contains__("@"):
             # remove the first @ in case it exists
@@ -63,7 +83,7 @@ def get_domain_and_id(inp):
 
 def check_domain(domain):
     try:
-        r = requests.get("https://" + domain + "/.well-known/nodeinfo")
+        r = requests.get("https://" + domain + "/.well-known/nodeinfo",headers=headers,timeout=2)
         # print(r.text)
         if r.status_code == 200:
             return True
@@ -73,10 +93,10 @@ def check_domain(domain):
         return False
 
 def fetch_details(domain):
-    r = requests.get("https://" + domain + "/.well-known/nodeinfo")
+    r = requests.get("https://" + domain + "/.well-known/nodeinfo",timeout=2, headers=headers)
     x = json.loads(r.text)
     detail_url = x["links"][0]["href"]
-    r = requests.get(detail_url)
+    r = requests.get(detail_url, headers=headers,timeout=2)
     # print(r.text)
     inst_data = json.loads(r.text)
     return inst_data
@@ -108,7 +128,7 @@ def parse_domain_details(inst_data):
 
 
 def check_user(username, domain):
-    r = requests.get("https://" + domain + "/.well-known/webfinger?resource=acct:" + username + "@" + domain)
+    r = requests.get("https://" + domain + "/.well-known/webfinger?resource=acct:" + username + "@" + domain,timeout=2, headers=headers)
     if r.status_code == 200:
         return True
     else:
@@ -116,7 +136,7 @@ def check_user(username, domain):
 
 
 def fetch_user_details(username, domain):
-    r = requests.get("https://" + domain + "/.well-known/webfinger?resource=acct:" + username + "@" + domain)
+    r = requests.get("https://" + domain + "/.well-known/webfinger?resource=acct:" + username + "@" + domain,timeout=2, headers=headers)
     x = json.loads(r.text)
     # print(json.dumps(x, indent=4))
     lnk = x["links"]
@@ -125,25 +145,61 @@ def fetch_user_details(username, domain):
             print("[✅] User Profile : " + i["href"])
 
 
+
 def hunt_name(name_hunt):
     f = open('nodes.json', 'r')
     full_list = json.load(f)
-    for i in full_list:
-        # print("Checking: " + i)
-        if is_instance_birdsitelive(i):
-            print("[*] Skipping Bird Site Live instance " + i)
-        else:
-            try:
-                r = requests.get("https://" + i + "/.well-known/webfinger?resource=acct:" + name_hunt + "@" + i)
-                if r.status_code == 200:
-                    x = json.loads(r.text)
-                    if "aliases" in x:
-                        if x["subject"] == "acct:" + name_hunt + "@" + i:
-                            print("[✅] User found on : " + i + " Details: " + ','.join(x["aliases"]))
-                        else:
-                            print("[⛔️] Misconfigured Server : " + i)
-            except:
-                print("[⛔] Connection Error : " + i)
+    print("starting threadpool")
+    with tqdm(total=len(full_list)) as pbar:
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            results = [executor.submit(huntfunc, i, name_hunt) for i in full_list]
+            try:     
+                for f in as_completed(results):
+                    pbar.update(1)
+                    # if f.result() != None:
+                    #     if f.result() != False:
+                    #         print(f.result())
+            except KeyboardInterrupt:
+                print("Ctrl C recieved : Exiting gracefully : Press Ctrl + C for immediate termination")
+                executor._threads.clear()
+                concurrent.futures.thread._threads_queues.clear()
+                executor.shutdown( cancel_futures = True )
+
+
+    for f in  concurrent.futures.as_completed(results):
+        if f.result() != None:
+            if f.result() != False:
+                print(f.result())
+        
+
+
+
+def huntfunc(i, name_hunt):
+    try:
+        if is_invalid_instance(i):
+            return False
+        r = requests.get("https://" + i + "/.well-known/webfinger?resource=acct:" + name_hunt + "@" + i,timeout=2, headers=headers)
+        if r.status_code == 200:
+            x = json.loads(r.text)
+            if "aliases" in x:
+                # This is needed to eliminate the scenario where user has put in a fake
+                # web finger response. this ensures that acct is matching to what we asked for.
+                if x["subject"] == "acct:" + name_hunt + "@" + i:
+                    try:
+                        for nm in x["aliases"]:
+                            r=requests.get(nm, headers=headers,timeout=2);
+                            # This check removes the false positives where the node suggests 
+                            # user exists but the profile has a 404 found a few culprits in the system
+                            if r.status_code != 200:
+                                return False
+                    except:
+                        return False
+                    return '[✅] User found on : ' + i + ' Details: ' + ', '.join(x["aliases"])
+                else:
+                    return False
+    except:
+        return False
+
 
 
 def main():
@@ -171,7 +227,7 @@ def main():
     if args.update:
         print("lets check if update is needed: new file to be fetched if last update was more then 6 hours older")
         if is_file_older_than("nodes.json", timedelta(hours=10)):
-            node_list = requests.get(nodelist_url)
+            node_list = requests.get(nodelist_url, headers=headers,timeout=2)
             if node_list.status_code == 200:
                 open('nodes.json', 'w').write(node_list.text)
             else:
@@ -181,6 +237,9 @@ def main():
         print("Lets hunt for the username " + name_hunt)
         hunt_name(name_hunt)
 
+    finish = time.perf_counter()
+
+    print(f"Finished in {round(finish-start, 2)} seconds")
 
 if __name__ == "__main__":
     main()
