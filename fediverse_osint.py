@@ -10,6 +10,8 @@ import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import as_completed
 from tqdm import tqdm
+import re
+import os
 
 headers = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; rv:91.0) Gecko/20100101 Firefox/91.0 https://github.com/anantshri/fediverse_osint'
@@ -134,6 +136,10 @@ def check_user(username, domain):
     else:
         return False
 
+def fetch_user_data(url,type):
+    headers["Accept"]=type
+    r = requests.get(url,timeout=2,headers=headers)
+    return r.json()
 
 def fetch_user_details(username, domain):
     r = requests.get("https://" + domain + "/.well-known/webfinger?resource=acct:" + username + "@" + domain,timeout=2, headers=headers)
@@ -143,6 +149,25 @@ def fetch_user_details(username, domain):
     for i in lnk:
         if i["rel"].__contains__("profile"):
             print("[✅] User Profile : " + i["href"])
+        if "type" in i and i["type"].__contains__("json"):
+            print("[✅] User Data here : " + i["href"])
+            udata=fetch_user_data(i["href"],i["type"])
+            if udata:
+                print("[✅] ====== Details Start =======")
+                if "name" in udata:
+                    print("[+] Name: "+ udata["name"])
+                if "summary" in udata:
+                    print("[+] Summary: "+str(udata["summary"]))
+                if "preferredUsername" in udata:
+                    print("[+] Preferred Username: "+udata["preferredUsername"])
+                if "attachment" in udata:
+                    for x in udata["attachment"]:
+                        print(re.findall('https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+', x["value"]))
+                print("[✅] ====== Details End =======")
+
+
+
+
 
 
 
@@ -156,9 +181,9 @@ def hunt_name(name_hunt):
             try:     
                 for f in as_completed(results):
                     pbar.update(1)
-                    # if f.result() != None:
-                    #     if f.result() != False:
-                    #         print(f.result())
+                    if f.result() != None:
+                        if f.result() != False:
+                            print(f.result())
             except KeyboardInterrupt:
                 print("Ctrl C recieved : Exiting gracefully : Press Ctrl + C for immediate termination")
                 executor._threads.clear()
@@ -206,7 +231,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", help="URL to start with", required=False)
     parser.add_argument("-s", "--search", help="User Id to search across fediverse", required=False)
-    parser.add_argument("-u", "--update", help="Update list of nodes from fediverse.party", required=False)
+    parser.add_argument("-u", "--update", help="Update list of nodes from fediverse.party", required=False, action='store_true')
     args = parser.parse_args()
     if args.input:
         inp = args.input
@@ -224,7 +249,7 @@ def main():
                 print("[❌] User Doesnt Exists")
         else:
             print("[⛔️] Not a fediverse entity")
-    if args.update:
+    elif args.update:
         print("lets check if update is needed: new file to be fetched if last update was more then 6 hours older")
         if is_file_older_than("nodes.json", timedelta(hours=10)):
             node_list = requests.get(nodelist_url, headers=headers,timeout=2)
@@ -232,14 +257,16 @@ def main():
                 open('nodes.json', 'w').write(node_list.text)
             else:
                 print("[⛔] Error while updating file")
-    if args.search:
+    elif args.search:
         name_hunt = args.search
         print("Lets hunt for the username " + name_hunt)
         hunt_name(name_hunt)
+    else:
+        parser.print_usage()
 
     finish = time.perf_counter()
-
     print(f"Finished in {round(finish-start, 2)} seconds")
+
 
 if __name__ == "__main__":
     main()
