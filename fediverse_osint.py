@@ -50,10 +50,8 @@ def is_invalid_instance(domain):
             # if its a birdsitelive instance no point going further
             if inst_data["software"]["name"] == "birdsitelive":
                 return True
-            else:
-                return False
-        else:
-            return True
+            return False
+        return True
     except:
         return True
 
@@ -94,8 +92,7 @@ def check_domain(domain):
         # print(r.text)
         if r.status_code == 200:
             return True
-        else:
-            return False
+        return False
     except:
         return False
 
@@ -144,8 +141,7 @@ def check_user(username, domain):
                      headers=headers)
     if r.status_code == 200:
         return True
-    else:
-        return False
+    return False
 
 
 def fetch_user_data(url, req_type):
