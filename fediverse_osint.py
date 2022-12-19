@@ -45,7 +45,6 @@ def is_invalid_instance(domain):
             x = json.loads(r.text)
             detail_url = x["links"][0]["href"]
             r = requests.get(detail_url, headers=headers, timeout=2)
-            # print(r.text)
             inst_data = json.loads(r.text)
             # if its a birdsitelive instance no point going further
             if inst_data["software"]["name"] == "birdsitelive":
@@ -60,7 +59,6 @@ def get_domain_and_id(inp):
     """Extracting domain name and username as tuple"""
     if validators.url(inp):
         link = urlparse(inp)
-        # print(link)
         domain_name = link.netloc
         if link.path.__contains__("@"):
             username = link.path[2:]
@@ -89,7 +87,6 @@ def check_domain(domain):
     """Check to see if domain has nodeinfo or not"""
     try:
         r = requests.get("https://" + domain + "/.well-known/nodeinfo", headers=headers, timeout=2)
-        # print(r.text)
         if r.status_code == 200:
             return True
         return False
@@ -104,7 +101,6 @@ def fetch_details(domain):
     x = json.loads(r.text)
     detail_url = x["links"][0]["href"]
     r = requests.get(detail_url, headers=headers, timeout=2)
-    # print(r.text)
     inst_data = json.loads(r.text)
     return inst_data
 
@@ -120,8 +116,6 @@ def parse_domain_details(inst_data):
         print("[+] Protocols Supported:", protocols_supported[0])
         protocol_version = inst_data["version"]
         print("[+] Protocol Version: ", protocol_version)
-        # reg_open = inst_data["openRegistrations"]
-        # print("[+] Registration Status: ", reg_open)
         if inst_data["usage"]["users"]:
             total_users = inst_data["usage"]["users"]["total"]
             print("[+] Total Users: ", total_users)
@@ -158,7 +152,6 @@ def fetch_user_details(username, domain):
     r = requests.get("https://" + domain + "/.well-known/webfinger?resource=acct:" + username + "@" + domain, timeout=2,
                      headers=headers)
     x = json.loads(r.text)
-    # print(json.dumps(x, indent=4))
     lnk = x["links"]
     for i in lnk:
         if i["rel"].__contains__("profile"):
@@ -227,8 +220,7 @@ def huntfunc(i, name_hunt):
                     except:
                         return None
                     return '[✅] User found on : ' + i + ' Details: ' + ', '.join(x["aliases"])
-                else:
-                    return None
+                return None
     except:
         return None
 
@@ -244,13 +236,12 @@ def main():
     if args.input:
         inp = args.input
         username, domain = get_domain_and_id(inp)
-        # print("Lets check if domain is a fediverse entity or not")
         if check_domain(domain):
             print("[✅] Valid entity, Proceeding with detail extraction")
-            # print("Lets get details about the domain")
+            print("[-] Lets get details about the domain")
             domain_details = fetch_details(domain)
             parse_domain_details(domain_details)
-            # print("lets confirm Users existence")
+            print("[-] Lets confirm Users existence")
             if check_user(username, domain):
                 fetch_user_details(username, domain)
             else:
@@ -258,22 +249,23 @@ def main():
         else:
             print("[⛔️] Not a fediverse entity")
     elif args.update:
-        print("lets check if update is needed: new file to be fetched if last update was more then 6 hours older")
+        print("[-] lets check if update is needed: new file to be fetched if last update > 6 hours older")
         if is_file_older_than("nodes.json", timedelta(hours=10)):
             node_list = requests.get(nodelist_url, headers=headers, timeout=2)
             if node_list.status_code == 200:
                 open('nodes.json', 'wb').write(node_list.content)
+                print("[🟢] Nodes.json File Updated")
             else:
                 print("[⛔] Error while updating file")
     elif args.search:
         name_hunt = args.search
-        print("Lets hunt for the username " + name_hunt)
+        print("[-] Lets hunt for the username " + name_hunt)
         hunt_name(name_hunt)
     else:
         parser.print_usage()
 
     finish = time.perf_counter()
-    print(f"Finished in {round(finish - start, 2)} seconds")
+    print(f"[-] Finished in {round(finish - start, 2)} seconds")
 
 
 if __name__ == "__main__":
