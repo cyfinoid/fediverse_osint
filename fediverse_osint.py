@@ -14,13 +14,12 @@ import re
 import os
 
 headers = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; rv:91.0) Gecko/20100101 Firefox/91.0 https://github.com/anantshri/fediverse_osint'
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; rv:91.0) Gecko/20100101 Firefox/91.0 fediverse_osint'
 }
 
 start = time.perf_counter()
 
 nodelist_url = "https://nodes.fediverse.party/nodes.json"
-
 
 
 def is_file_older_than(file, delta):
@@ -36,12 +35,12 @@ def is_invalid_instance(domain):
     # 1. its responding to nodeinfo
     # 2. its not birdsitelive
     try:
-        r = requests.get("https://" + domain + "/.well-known/nodeinfo", headers=headers,timeout=2)
+        r = requests.get("https://" + domain + "/.well-known/nodeinfo", headers=headers, timeout=2)
         # if nodeinfo not responding no point going further
         if r.status_code == 200:
             x = json.loads(r.text)
             detail_url = x["links"][0]["href"]
-            r = requests.get(detail_url, headers=headers,timeout=2)
+            r = requests.get(detail_url, headers=headers, timeout=2)
             # print(r.text)
             inst_data = json.loads(r.text)
             # if its a birdsitelive instance no point going further
@@ -85,7 +84,7 @@ def get_domain_and_id(inp):
 
 def check_domain(domain):
     try:
-        r = requests.get("https://" + domain + "/.well-known/nodeinfo",headers=headers,timeout=2)
+        r = requests.get("https://" + domain + "/.well-known/nodeinfo", headers=headers, timeout=2)
         # print(r.text)
         if r.status_code == 200:
             return True
@@ -94,11 +93,12 @@ def check_domain(domain):
     except:
         return False
 
+
 def fetch_details(domain):
-    r = requests.get("https://" + domain + "/.well-known/nodeinfo",timeout=2, headers=headers)
+    r = requests.get("https://" + domain + "/.well-known/nodeinfo", timeout=2, headers=headers)
     x = json.loads(r.text)
     detail_url = x["links"][0]["href"]
-    r = requests.get(detail_url, headers=headers,timeout=2)
+    r = requests.get(detail_url, headers=headers, timeout=2)
     # print(r.text)
     inst_data = json.loads(r.text)
     return inst_data
@@ -130,19 +130,23 @@ def parse_domain_details(inst_data):
 
 
 def check_user(username, domain):
-    r = requests.get("https://" + domain + "/.well-known/webfinger?resource=acct:" + username + "@" + domain,timeout=2, headers=headers)
+    r = requests.get("https://" + domain + "/.well-known/webfinger?resource=acct:" + username + "@" + domain, timeout=2,
+                     headers=headers)
     if r.status_code == 200:
         return True
     else:
         return False
 
-def fetch_user_data(url,type):
-    headers["Accept"]=type
-    r = requests.get(url,timeout=2,headers=headers)
+
+def fetch_user_data(url, req_type):
+    headers["Accept"] = req_type
+    r = requests.get(url, timeout=2, headers=headers)
     return r.json()
 
+
 def fetch_user_details(username, domain):
-    r = requests.get("https://" + domain + "/.well-known/webfinger?resource=acct:" + username + "@" + domain,timeout=2, headers=headers)
+    r = requests.get("https://" + domain + "/.well-known/webfinger?resource=acct:" + username + "@" + domain, timeout=2,
+                     headers=headers)
     x = json.loads(r.text)
     # print(json.dumps(x, indent=4))
     lnk = x["links"]
@@ -151,24 +155,19 @@ def fetch_user_details(username, domain):
             print("[✅] User Profile : " + i["href"])
         if "type" in i and i["type"].__contains__("json"):
             print("[✅] User Data here : " + i["href"])
-            udata=fetch_user_data(i["href"],i["type"])
+            udata = fetch_user_data(i["href"], i["type"])
             if udata:
                 print("[✅] ====== Details Start =======")
                 if "name" in udata:
-                    print("[+] Name: "+ udata["name"])
+                    print("[+] Name: " + udata["name"])
                 if "summary" in udata:
-                    print("[+] Summary: "+str(udata["summary"]))
+                    print("[+] Summary: " + str(udata["summary"]))
                 if "preferredUsername" in udata:
-                    print("[+] Preferred Username: "+udata["preferredUsername"])
+                    print("[+] Preferred Username: " + udata["preferredUsername"])
                 if "attachment" in udata:
                     for x in udata["attachment"]:
                         print(re.findall('https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+', x["value"]))
                 print("[✅] ====== Details End =======")
-
-
-
-
-
 
 
 def hunt_name(name_hunt):
@@ -178,7 +177,7 @@ def hunt_name(name_hunt):
     with tqdm(total=len(full_list)) as pbar:
         with concurrent.futures.ThreadPoolExecutor() as executor:
             results = [executor.submit(huntfunc, i, name_hunt) for i in full_list]
-            try:     
+            try:
                 for f in as_completed(results):
                     pbar.update(1)
                     if f.result() != None:
@@ -188,22 +187,19 @@ def hunt_name(name_hunt):
                 print("Ctrl C recieved : Exiting gracefully : Press Ctrl + C for immediate termination")
                 executor._threads.clear()
                 concurrent.futures.thread._threads_queues.clear()
-                executor.shutdown( cancel_futures = True )
+                executor.shutdown(cancel_futures=True)
 
-
-    for f in  concurrent.futures.as_completed(results):
-        if f.result() != None:
-            if f.result() != False:
-                print(f.result())
-        
-
+    for f in concurrent.futures.as_completed(results):
+        if f.result() and f.result() is not None:
+            print(f.result())
 
 
 def huntfunc(i, name_hunt):
     try:
         if is_invalid_instance(i):
             return False
-        r = requests.get("https://" + i + "/.well-known/webfinger?resource=acct:" + name_hunt + "@" + i,timeout=2, headers=headers)
+        r = requests.get("https://" + i + "/.well-known/webfinger?resource=acct:" + name_hunt + "@" + i, timeout=2,
+                         headers=headers)
         if r.status_code == 200:
             x = json.loads(r.text)
             if "aliases" in x:
@@ -212,7 +208,7 @@ def huntfunc(i, name_hunt):
                 if x["subject"] == "acct:" + name_hunt + "@" + i:
                     try:
                         for nm in x["aliases"]:
-                            r=requests.get(nm, headers=headers,timeout=2);
+                            r = requests.get(nm, headers=headers, timeout=2);
                             # This check removes the false positives where the node suggests 
                             # user exists but the profile has a 404 found a few culprits in the system
                             if r.status_code != 200:
@@ -226,12 +222,12 @@ def huntfunc(i, name_hunt):
         return False
 
 
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", help="URL to start with", required=False)
     parser.add_argument("-s", "--search", help="User Id to search across fediverse", required=False)
-    parser.add_argument("-u", "--update", help="Update list of nodes from fediverse.party", required=False, action='store_true')
+    parser.add_argument("-u", "--update", help="Update list of nodes from fediverse.party", required=False,
+                        action='store_true')
     args = parser.parse_args()
     if args.input:
         inp = args.input
@@ -252,7 +248,7 @@ def main():
     elif args.update:
         print("lets check if update is needed: new file to be fetched if last update was more then 6 hours older")
         if is_file_older_than("nodes.json", timedelta(hours=10)):
-            node_list = requests.get(nodelist_url, headers=headers,timeout=2)
+            node_list = requests.get(nodelist_url, headers=headers, timeout=2)
             if node_list.status_code == 200:
                 open('nodes.json', 'w').write(node_list.text)
             else:
@@ -265,7 +261,7 @@ def main():
         parser.print_usage()
 
     finish = time.perf_counter()
-    print(f"Finished in {round(finish-start, 2)} seconds")
+    print(f"Finished in {round(finish - start, 2)} seconds")
 
 
 if __name__ == "__main__":
