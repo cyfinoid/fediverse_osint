@@ -22,6 +22,7 @@ nodelist_url = "https://nodes.fediverse.party/nodes.json"
 
 
 def is_file_older_than(file, delta):
+    """Checks if file is older then a specified delta value"""
     cutoff = datetime.utcnow() - delta
     mtime = datetime.utcfromtimestamp(os.path.getmtime(file))
     if mtime < cutoff:
@@ -30,9 +31,13 @@ def is_file_older_than(file, delta):
 
 
 def is_invalid_instance(domain):
-    # Returns False only when specific conditions are met, any error is a return True automatically
-    # 1. its responding to nodeinfo
-    # 2. its not birdsitelive
+    """In fediverse multiple scanrios are possible where instances can be considered invalid.
+    This function by default returns true which means instance is invalid for our usage.
+    It returns False only when specific conditions are met,
+    1. its responding to nodeinfo
+    2. its not birdsitelive
+    any error is a return True automatically
+    """
     try:
         r = requests.get("https://" + domain + "/.well-known/nodeinfo", headers=headers, timeout=2)
         # if nodeinfo not responding no point going further
@@ -54,6 +59,7 @@ def is_invalid_instance(domain):
 
 
 def get_domain_and_id(inp):
+    """Extracting domain name and username as tuple"""
     if validators.url(inp):
         link = urlparse(inp)
         # print(link)
@@ -82,6 +88,7 @@ def get_domain_and_id(inp):
 
 
 def check_domain(domain):
+    """Check to see if domain has nodeinfo or not"""
     try:
         r = requests.get("https://" + domain + "/.well-known/nodeinfo", headers=headers, timeout=2)
         # print(r.text)
@@ -94,6 +101,8 @@ def check_domain(domain):
 
 
 def fetch_details(domain):
+    """Get details from nodeinfo"""
+    # May be replace this with check_domain call and make checkdomain return data
     r = requests.get("https://" + domain + "/.well-known/nodeinfo", timeout=2, headers=headers)
     x = json.loads(r.text)
     detail_url = x["links"][0]["href"]
@@ -104,6 +113,7 @@ def fetch_details(domain):
 
 
 def parse_domain_details(inst_data):
+    """Simple json parsing function to get domain details"""
     try:
         name = inst_data["software"]["name"]
         print("[+] Software Name: ", name)
@@ -129,6 +139,7 @@ def parse_domain_details(inst_data):
 
 
 def check_user(username, domain):
+    """Check if username exists on that domain via webfinger"""
     r = requests.get("https://" + domain + "/.well-known/webfinger?resource=acct:" + username + "@" + domain, timeout=2,
                      headers=headers)
     if r.status_code == 200:
@@ -138,12 +149,16 @@ def check_user(username, domain):
 
 
 def fetch_user_data(url, req_type):
+    """Simple get request to fetch specific user details"""
+    # TODO: either expand functionality or remove abstraction
     headers["Accept"] = req_type
     r = requests.get(url, timeout=2, headers=headers)
     return r.json()
 
 
 def fetch_user_details(username, domain):
+    """Extracting user details from webfinger output"""
+    # TODO: below request should be calling check_user and receive response
     r = requests.get("https://" + domain + "/.well-known/webfinger?resource=acct:" + username + "@" + domain, timeout=2,
                      headers=headers)
     x = json.loads(r.text)
@@ -170,6 +185,7 @@ def fetch_user_details(username, domain):
 
 
 def hunt_name(name_hunt):
+    """Parallel processing function block which will perform multithreaded search"""
     f = open('nodes.json', 'r')
     full_list = json.load(f)
     print("starting threadpool")
@@ -193,6 +209,7 @@ def hunt_name(name_hunt):
 
 
 def huntfunc(i, name_hunt):
+    """Function to be used in multi threaded call : gives None or a specific user details"""
     try:
         if is_invalid_instance(i):
             return None
@@ -221,6 +238,7 @@ def huntfunc(i, name_hunt):
 
 
 def main():
+    """Main function for Fediverse OSINT Code"""
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", help="URL to start with", required=False)
     parser.add_argument("-s", "--search", help="User Id to search across fediverse", required=False)
