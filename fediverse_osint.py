@@ -22,7 +22,7 @@ nodelist_url = "https://nodes.fediverse.party/nodes.json"
 
 
 def is_file_older_than(file, delta):
-    """Checks if file is older then a specified delta value"""
+    """Checks if file is older than a specified delta value"""
     cutoff = datetime.utcnow() - delta
     mtime = datetime.utcfromtimestamp(os.path.getmtime(file))
     if mtime < cutoff:
@@ -31,11 +31,11 @@ def is_file_older_than(file, delta):
 
 
 def is_invalid_instance(domain):
-    """In fediverse multiple scanrios are possible where instances can be considered invalid.
+    """In fediverse multiple scenarios exists where instances can be considered invalid.
     This function by default returns true which means instance is invalid for our usage.
     It returns False only when specific conditions are met,
-    1. its responding to nodeinfo
-    2. its not birdsitelive
+    1. it's responding to nodeinfo
+    2. it's not birdsitelive
     any error is a return True automatically
     """
     try:
@@ -46,7 +46,7 @@ def is_invalid_instance(domain):
             detail_url = x["links"][0]["href"]
             r = requests.get(detail_url, headers=headers, timeout=2)
             inst_data = json.loads(r.text)
-            # if its a birdsitelive instance no point going further
+            # if it's a birdsitelive instance no point going further
             if inst_data["software"]["name"] == "birdsitelive":
                 return True
             return False
@@ -96,7 +96,7 @@ def check_domain(domain):
 
 def fetch_details(domain):
     """Get details from nodeinfo"""
-    # May be replace this with check_domain call and make checkdomain return data
+    # May be replaced this with check_domain call and make checkdomain return data
     r = requests.get("https://" + domain + "/.well-known/nodeinfo", timeout=2, headers=headers)
     x = json.loads(r.text)
     detail_url = x["links"][0]["href"]
@@ -125,7 +125,7 @@ def parse_domain_details(inst_data):
             print("[⛔] Single User instance or info not available")
 
     except KeyError:
-        print("[⛔] Error occured")
+        print("[⛔] Error occurred")
         print(inst_data)
 
 
@@ -169,12 +169,13 @@ def fetch_user_details(username, domain):
                     print("[+] Preferred Username: " + udata["preferredUsername"])
                 if "attachment" in udata:
                     for x in udata["attachment"]:
-                        print(re.findall(r'https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+', x["value"]))
+                        print(re.findall(r'https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+',
+                                         x["value"]))
                 print("[✅] ====== Details End =======")
 
 
 def hunt_name(name_hunt):
-    """Parallel processing function block which will perform multithreaded search"""
+    """Parallel processing function block which will perform multithreading search"""
     f = open('nodes.json', 'r')
     full_list = json.load(f)
     print("starting threadpool")
@@ -198,7 +199,7 @@ def hunt_name(name_hunt):
 
 
 def huntfunc(i, name_hunt):
-    """Function to be used in multi threaded call : gives None or a specific user details"""
+    """Function to be used in multithreading call : gives None or user details"""
     try:
         if is_invalid_instance(i):
             return None
@@ -230,7 +231,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", help="URL to start with", required=False)
     parser.add_argument("-s", "--search", help="User Id to search across fediverse", required=False)
-    parser.add_argument("-u", "--update", help="Update list of nodes from fediverse.party", required=False,
+    parser.add_argument("-u", "--update", help="Update list of nodes from fediverse.party",
+                        required=False,
                         action='store_true')
     args = parser.parse_args()
     if args.input:
