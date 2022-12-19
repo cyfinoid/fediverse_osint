@@ -7,7 +7,6 @@ import json
 from datetime import timedelta, datetime
 import time
 import concurrent.futures
-from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import as_completed
 from tqdm import tqdm
 import re
@@ -180,11 +179,10 @@ def hunt_name(name_hunt):
             try:
                 for f in as_completed(results):
                     pbar.update(1)
-                    if f.result() != None:
-                        if f.result() != False:
-                            print(f.result())
+                    if f.result() and f.result() is not None:
+                        print(f.result())
             except KeyboardInterrupt:
-                print("Ctrl C recieved : Exiting gracefully : Press Ctrl + C for immediate termination")
+                print("Ctrl C received : Exiting gracefully : Press Ctrl + C for immediate termination")
                 executor._threads.clear()
                 concurrent.futures.thread._threads_queues.clear()
                 executor.shutdown(cancel_futures=True)
@@ -238,7 +236,7 @@ def main():
             # print("Lets get details about the domain")
             domain_details = fetch_details(domain)
             parse_domain_details(domain_details)
-            # print("lets confirm Users existance")
+            # print("lets confirm Users existence")
             if check_user(username, domain):
                 fetch_user_details(username, domain)
             else:
@@ -250,7 +248,7 @@ def main():
         if is_file_older_than("nodes.json", timedelta(hours=10)):
             node_list = requests.get(nodelist_url, headers=headers, timeout=2)
             if node_list.status_code == 200:
-                open('nodes.json', 'w').write(node_list.text)
+                open('nodes.json', 'wb').write(node_list.content)
             else:
                 print("[⛔] Error while updating file")
     elif args.search:
