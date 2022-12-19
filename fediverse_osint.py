@@ -165,7 +165,7 @@ def fetch_user_details(username, domain):
                     print("[+] Preferred Username: " + udata["preferredUsername"])
                 if "attachment" in udata:
                     for x in udata["attachment"]:
-                        print(re.findall('https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+', x["value"]))
+                        print(re.findall(r'https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+', x["value"]))
                 print("[✅] ====== Details End =======")
 
 
@@ -195,7 +195,7 @@ def hunt_name(name_hunt):
 def huntfunc(i, name_hunt):
     try:
         if is_invalid_instance(i):
-            return False
+            return None
         r = requests.get("https://" + i + "/.well-known/webfinger?resource=acct:" + name_hunt + "@" + i, timeout=2,
                          headers=headers)
         if r.status_code == 200:
@@ -206,18 +206,18 @@ def huntfunc(i, name_hunt):
                 if x["subject"] == "acct:" + name_hunt + "@" + i:
                     try:
                         for nm in x["aliases"]:
-                            r = requests.get(nm, headers=headers, timeout=2);
-                            # This check removes the false positives where the node suggests 
+                            r = requests.get(nm, headers=headers, timeout=2)
+                            # This check removes the false positives where the node suggests
                             # user exists but the profile has a 404 found a few culprits in the system
                             if r.status_code != 200:
                                 return False
                     except:
-                        return False
+                        return None
                     return '[✅] User found on : ' + i + ' Details: ' + ', '.join(x["aliases"])
                 else:
-                    return False
+                    return None
     except:
-        return False
+        return None
 
 
 def main():
